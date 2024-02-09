@@ -1,0 +1,78 @@
+version: "3.8"
+
+services:
+  nginx:
+    image: "nginx:stable-alpine"
+    restart: always
+    ports:
+      - "${NGINX_HOST_HTTP_PORT}:80"
+    volumes:
+      - ./nginx/nginx.conf:/etc/nginx/conf.d/default.conf:ro
+      - ./app:/var/www/technical
+    container_name: technical_nginx
+
+  php:
+    build:
+      context: .
+      dockerfile: php/Dockerfile
+      args:
+        - PUID=${PUID}
+        - PGID=${PGID}
+    restart: always
+    environment:
+      PHP_IDE_CONFIG: "serverName=${XDEBUG_SERVER_NAME}"
+    volumes:
+      - ./app:/var/www/technical
+    container_name: technical_php
+
+  postgres:
+    build:
+      context: .
+      dockerfile: postgres/Dockerfile
+    restart: always
+    ports:
+      - ${POSTGRES_HOST_PORT}:5432
+    environment:
+      POSTGRES_DB: ${POSTGRES_DB}
+      POSTGRES_USER: ${POSTGRES_USER}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
+    volumes:
+      - technical_db:/var/lib/postgresql/data:rw
+    container_name: technical_postgres
+
+  adminer:
+    image: adminer
+    restart: always
+    environment:
+      ADMINER_DEFAULT_SERVER: postgres
+    ports:
+      - ${ADMINER_HOST_PORT}:8080
+    container_name: technical_adminer
+
+  composer:
+    build:
+      context: .
+      dockerfile: php/composer.Dockerfile
+    volumes:
+      - ./app:/var/www/technical
+    user: "${PUID}:${PGID}"
+
+  artisan:
+    build:
+      context: .
+      dockerfile: php/Dockerfile
+    volumes:
+      - ./app:/var/www/technical
+    entrypoint: [ "php", "/var/www/technical/artisan" ]
+    user: "${PUID}:${PGID}"
+
+  npm:
+    image: node:18.16.0-alpine
+    working_dir: /var/www/technical
+    entrypoint: [ "npm" ]
+    volumes:
+      - ./app:/var/www/technical
+    user: "${PUID}:${PGID}"
+
+volumes:
+  technical_db:
