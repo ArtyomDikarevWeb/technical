@@ -23,6 +23,8 @@ services:
       PHP_IDE_CONFIG: "serverName=${XDEBUG_SERVER_NAME}"
     volumes:
       - ./app:/var/www/technical
+      - ./php/supervisor/supervisord.conf:/etc/supervisord.conf:ro
+      - ./php/supervisor/laravel-worker.conf:/etc/supervisor/conf.d/laravel-worker.conf:ro
     container_name: technical_php
 
   postgres:
@@ -66,6 +68,13 @@ services:
     entrypoint: [ "php", "/var/www/technical/artisan" ]
     user: "${PUID}:${PGID}"
 
+  php-worker:
+    build:
+      context: .
+      dockerfile: php/supervisor/Dockerfile
+    volumes:
+      - ./app:/var/www/technical
+
   npm:
     image: node:18.16.0-alpine
     working_dir: /var/www/technical
@@ -74,5 +83,21 @@ services:
       - ./app:/var/www/technical
     user: "${PUID}:${PGID}"
 
+  redis:
+    image: redis:latest
+    restart: always
+    ports:
+      - ${REDIS_HOST_PORT}:6379
+    container_name: technical_redis
+
+  redisinsight:
+    image: redislabs/redisinsight
+    ports:
+      - '8001:8001'
+    volumes:
+      - redis_db:/db
+
+
 volumes:
   technical_db:
+  redis_db:
